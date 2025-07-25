@@ -1,0 +1,299 @@
+{% extends "layout.html" %}
+
+{% block title %}Processing Results - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="bi bi-file-text me-2"></i>
+                    Invoice Processing Results
+                </h2>
+                <a href="{{ url_for('upload.index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Process Another Invoice
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% if data %}
+    <!-- Invoice Summary Card -->
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="bi bi-receipt me-2"></i>
+                Invoice Summary
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>Invoice Number:</strong></td>
+                            <td>{{ data.invoice_data.invoice_number or 'Not found' }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Invoice Date:</strong></td>
+                            <td>{{ data.invoice_data.invoice_date or 'Not found' }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vendor Name:</strong></td>
+                            <td>{{ data.invoice_data.vendor_name or 'Not found' }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>GSTIN:</strong></td>
+                            <td>{{ data.invoice_data.gstin or 'Not found' }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Extracted Total:</strong></td>
+                            <td class="fs-5 text-success">
+                                <strong>₹{{ "%.2f"|format(data.invoice_data.total_amount) }}</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>File Processed:</strong></td>
+                            <td>{{ data.filename }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if data.tax_data %}
+    <!-- Tax Prediction Card -->
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="bi bi-calculator me-2"></i>
+                Tax Prediction Results
+            </h4>
+        </div>
+        <div class="card-body">
+            <!-- Tax Summary -->
+            <div class="tax-breakdown">
+                <h5 class="mb-3">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Tax Breakdown
+                </h5>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="text-center">
+                            <div class="h4 text-primary">₹{{ "%.2f"|format(data.tax_data.tax_summary.total_taxable_amount) }}</div>
+                            <small class="text-muted">Taxable Amount</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="text-center">
+                            <div class="h4 text-info">₹{{ "%.2f"|format(data.tax_data.tax_summary.tax_breakdown.cgst) }}</div>
+                            <small class="text-muted">CGST</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="text-center">
+                            <div class="h4 text-info">₹{{ "%.2f"|format(data.tax_data.tax_summary.tax_breakdown.sgst) }}</div>
+                            <small class="text-muted">SGST</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <div class="text-center">
+                            <div class="h4 text-success">₹{{ "%.2f"|format(data.tax_data.predicted_total) }}</div>
+                            <small class="text-muted">Predicted Total</small>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if data.tax_data.validation %}
+                <div class="mt-3 p-3 rounded" style="background-color: rgba(255, 255, 255, 0.7);">
+                    <h6>
+                        <i class="bi bi-check-circle me-2"></i>
+                        Validation
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Extracted:</strong> ₹{{ "%.2f"|format(data.tax_data.validation.extracted_total) }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Predicted:</strong> ₹{{ "%.2f"|format(data.tax_data.validation.predicted_total) }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Status:</strong> 
+                            <span class="badge {{ 'bg-success' if data.tax_data.validation.match_threshold else 'bg-warning' }}">
+                                {{ 'Match' if data.tax_data.validation.match_threshold else 'Difference: ₹' + "%.2f"|format(data.tax_data.validation.difference) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Line Items with Tax -->
+    {% if data.tax_data.line_items_with_tax %}
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>
+                Line Items with Tax Prediction
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>S.No</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Tax Rate</th>
+                            <th>Tax Amount</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data.tax_data.line_items_with_tax %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.description[:50] + '...' if item.description|length > 50 else item.description }}</td>
+                            <td>₹{{ "%.2f"|format(item.amount) }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-primary' if item.category == 'goods' else 'bg-info' if item.category == 'services' else 'bg-success' if item.category == 'exempt' else 'bg-warning' }}">
+                                    {{ item.category.title() }}
+                                </span>
+                            </td>
+                            <td>{{ item.tax_rate }}%</td>
+                            <td>₹{{ "%.2f"|format(item.tax_amount) }}</td>
+                            <td><strong>₹{{ "%.2f"|format(item.total_with_tax) }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    <!-- Line Items (Original) -->
+    {% if data.invoice_data.line_items %}
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="bi bi-list-check me-2"></i>
+                Extracted Line Items
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>S.No</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data.invoice_data.line_items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.description }}</td>
+                            <td>₹{{ "%.2f"|format(item.amount) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Export Options -->
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="bi bi-download me-2"></i>
+                Export Options
+            </h4>
+        </div>
+        <div class="card-body text-center">
+            <p class="text-muted mb-4">Download the processed invoice data in your preferred format</p>
+            <div class="row justify-content-center">
+                <div class="col-auto">
+                    <button class="btn btn-download btn-success me-3" onclick="exportData('json', {{ data|tojson }})">
+                        <i class="bi bi-file-earmark-code me-2"></i>
+                        Download JSON
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-download btn-primary" onclick="exportData('excel', {{ data|tojson }})">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+                        Download Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Raw OCR Text (Collapsible) -->
+    <div class="card result-card fade-in">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <button class="btn btn-link text-white text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#rawTextCollapse">
+                    <i class="bi bi-file-text me-2"></i>
+                    Raw OCR Text
+                    <i class="bi bi-chevron-down ms-2"></i>
+                </button>
+            </h4>
+        </div>
+        <div class="collapse" id="rawTextCollapse">
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">{{ data.raw_text }}</pre>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- Error State -->
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">Processing Failed</h4>
+        <p>Unable to process the uploaded invoice. Please ensure the file is a valid image or PDF with readable text.</p>
+        <hr>
+        <a href="{{ url_for('upload.index') }}" class="btn btn-outline-danger">Try Again</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Export function (defined in layout.html is used here)
+function exportData(format, data) {
+    // Create form and submit for file download
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = `/export/${format}`;
+    
+    const dataInput = document.createElement('input');
+    dataInput.type = 'hidden';
+    dataInput.name = 'data';
+    dataInput.value = JSON.stringify(data);
+    
+    form.appendChild(dataInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+</script>
+{% endblock %}

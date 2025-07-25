@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Invoice Digitization & Tax Prediction Tool{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .upload-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #667eea;
+            background-color: #f8f9fa;
+        }
+        
+        .upload-zone.dragover {
+            border-color: #667eea;
+            background-color: #e3f2fd;
+        }
+        
+        .result-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .result-card .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: bold;
+        }
+        
+        .btn-download {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-2px);
+        }
+        
+        .tax-breakdown {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 2rem 0;
+            margin-top: 4rem;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('upload.index') }}">
+                <i class="bi bi-receipt-cutoff me-2"></i>
+                Invoice Digitization & Tax Prediction Tool
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload.index') }}">
+                            <i class="bi bi-upload me-1"></i>Upload
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container mt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                            <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="mb-2">
+                        <i class="bi bi-receipt-cutoff me-2"></i>
+                        <strong>Invoice Digitization & Tax Prediction Tool</strong>
+                    </p>
+                    <p class="mb-0 text-muted">
+                        Powered by EasyOCR, Flask, and Bootstrap | Built with ❤️ for efficient invoice processing
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // File upload drag and drop functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadZone = document.querySelector('.upload-zone');
+            const fileInput = document.querySelector('input[type="file"]');
+            
+            if (uploadZone && fileInput) {
+                // Prevent default drag behaviors
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadZone.addEventListener(eventName, preventDefaults, false);
+                    document.body.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                // Highlight drop area when item is dragged over it
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadZone.addEventListener(eventName, highlight, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadZone.addEventListener(eventName, unhighlight, false);
+                });
+                
+                // Handle dropped files
+                uploadZone.addEventListener('drop', handleDrop, false);
+                
+                // Handle click to select file
+                uploadZone.addEventListener('click', () => fileInput.click());
+            }
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function highlight(e) {
+                uploadZone.classList.add('dragover');
+            }
+            
+            function unhighlight(e) {
+                uploadZone.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    // You can add file validation here
+                    updateUploadZoneText(files[0].name);
+                }
+            }
+            
+            function updateUploadZoneText(filename) {
+                const uploadText = uploadZone.querySelector('.upload-text');
+                if (uploadText) {
+                    uploadText.innerHTML = `
+                        <i class="bi bi-file-check fs-1 text-success mb-3"></i>
+                        <h4>File Selected: ${filename}</h4>
+                        <p class="text-muted">Click "Process Invoice" to continue</p>
+                    `;
+                }
+            }
+            
+            // File input change handler
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    if (e.target.files.length > 0) {
+                        updateUploadZoneText(e.target.files[0].name);
+                    }
+                });
+            }
+        });
+        
+        // Export functionality
+        function exportData(format, data) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/api/export';
+            
+            const formatInput = document.createElement('input');
+            formatInput.type = 'hidden';
+            formatInput.name = 'format';
+            formatInput.value = format;
+            
+            const dataInput = document.createElement('input');
+            dataInput.type = 'hidden';
+            dataInput.name = 'data';
+            dataInput.value = JSON.stringify(data);
+            
+            form.appendChild(formatInput);
+            form.appendChild(dataInput);
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        }
+        
+        // Show loading spinner
+        function showLoading(buttonElement) {
+            const spinner = buttonElement.querySelector('.loading-spinner');
+            const text = buttonElement.querySelector('.button-text');
+            if (spinner && text) {
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Processing...';
+                buttonElement.disabled = true;
+            }
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
